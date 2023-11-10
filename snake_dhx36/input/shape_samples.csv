@@ -1,0 +1,9 @@
+Sample,bam
+DHX36_N1_IP,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_N1_IP.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_N2_IP,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_N2_IP.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_N1_IN,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_N1_IN.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_N2_IN,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_N2_IN.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_D1_IP,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_D1_IP.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_D2_IP,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_D2_IP.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_D1_IN,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_D1_IN.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam
+DHX36_D2_IN,/home/hsher/rg4_seq/fshape_eclip_pipe/results/fSHAPE_under_eclip_pipeline.DHX36_D2_IN.umi.r1.fq.genome-mappedSoSo.rmDupSo.bam

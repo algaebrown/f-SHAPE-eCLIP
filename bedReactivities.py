@@ -86,14 +86,31 @@ def binarySearchClosest(SORTED,TARGET):
 
 #the cov files only list coverge for genomic pos with > 0 coverage
 
-def cov_from_files(covFiles,bedPosIn,bedSum,chrom,add1): #returns np matrix with bed region's coverage from each of files in covfiles
+def cov_from_files(covFiles,bedPosIn,bedSum,chrom,add1): 
+    '''
+    covFiles: list of .mut/.cov file to fetch from, for each sample
+    bedPosIn: list of [CHROM, START, END]
+    bedSum: total # of nucleotides in the bed
+    chrom: not used
+    add1: for /mut is 0, for .cov is 1
+
+    returns: np matrix with bed region's coverage from each of files in covfiles
+    region_len, sample_no
+    '''
+    
+    
     cov = np.zeros((len(covFiles),bedSum), dtype='int')
-    for i in range(0,len(covFiles)):
+    for i in range(0,len(covFiles)): # FOR EVERY SAMPLE
+
+        # bedPos = bedPosIn.deepcopy()
         bedPos = [] #make a copy of the bed regions
-        for element in bedPosIn:
+        for element in bedPosIn: # FOR EVER REGION
             bedPos.append(list(element))
+
         thiscov = np.zeros(bedSum,dtype='int')+add1 #will contain coverages for each nucleotide position
         counter = 0 #keeps track of how many bp of the combined bed regions we've gone through
+
+        # READING .cov/.mut file
         fh = open(covFiles[i],'r')
         fhlist = fh.read().splitlines() #assuming coverage files small enough to read into a list
         fh.close()
@@ -127,19 +144,34 @@ def cov_from_files(covFiles,bedPosIn,bedSum,chrom,add1): #returns np matrix with
         cov[i] = thiscov
     return np.transpose(cov)
 
-def getCoverage(bedlines,prefixes): #given sorted matrix of bed regions
+def getCoverage(bedlines,prefixes): 
+    '''
+    bedlines: sorted matrix of NON-overlapping bed regions
+    prefixes: prefixes of filenames (DATAPATH)
+    
+    return cov, cov5 (.cov, .mut)
+    '''
+    
+    
+    
+    #given sorted matrix of bed regions
     chrom = bedlines[0][0] #assuming all bed regions on same chromosome
     if len(bedlines[0])<6:
         print("Bed regions need strand information.")
         sys.exit()
     strand = str(bedlines[0][5]) #assuming all same strand too
     #put bed regions into a stack (list)
-    bedPos = []
+    
+
+    # ===== CALCULATE TOTAL BP IN REGIONS ======
     bedSum = 0
+    bedPos = []
     for i in range(len(bedlines)-1,-1,-1): #listing bed regions in reverse order, like a stack
-        bedPos.append(bedlines[i][1:3])
+        bedPos.append(bedlines[i][1:3]) # CHROM,START,END
         bedSum += int(bedlines[i][2]) - int(bedlines[i][1]) #the total number of bp in the bed regions
-    #print(prefixes)
+    
+    # ===== FOR EACH DATAPATH FILES, FETCH .cov from file ====
+    # TODO: replace with bw
     covFiles = [] #coverage files are split up by chromosome, only need to parse the one corresponding to this bed file
     fileDNE = False
     for i in prefixes:
@@ -152,6 +184,8 @@ def getCoverage(bedlines,prefixes): #given sorted matrix of bed regions
     
     cov = cov_from_files(covFiles,bedPos,bedSum,chrom,1) #starting at a base coverage of 1 because later have to divide by overall coverage
 
+    # ===== FOR EACH DATAPATH FILES, FETCH .mut from file ====
+    # TODO: replace with bw
     covFiles = [] #now get the 5' coverage
     for i in prefixes:
         strand_str = ".pos" if strand == "+" else ".neg"
@@ -161,6 +195,9 @@ def getCoverage(bedlines,prefixes): #given sorted matrix of bed regions
     if fileDNE: #for the case of a chromosome that has no coverage file. e.g. weird chromosomes
         return np.zeros((bedSum,4),dtype='int')+1,np.zeros((bedSum,4),dtype='int')
     cov5 = cov_from_files(covFiles,bedPos,bedSum,chrom,0)
+    
+    
+    # ===== MAKE 5' to 3' ====
     if strand=="-":
         return cov[::-1], cov5[::-1]
     else:
@@ -297,6 +334,7 @@ def write_map_file(rx,name,sequence,ignore=-999,basename=BASENAME):
         name = name[:-1] + "-pos"
     elif strand == '-':
         name = name[:-1] + "-neg"
+    print('WRITING MAP FILE TO:  ', "{}{}{}".format(basename, name.replace(':','-'), extension))
     outfile = open("{}{}{}".format(basename, name.replace(':','-'), extension), 'w') #writing given matrices to output files
     counter = 1
     for line in rx:
@@ -317,6 +355,8 @@ def write_to_bedgraph(rx_in,chrom,start,strand,ignore=-999,basename=BASENAME):
             return
     #since bedgraph is strandless format, will output to separate + and - strand bedgrph files
     formatted_strand = "pos" if strand == '+' else "neg"
+
+    print('WRITE BEDGRAPH TO:', basename+"{}.strand".format(formatted_strand)+extension)
     outfile = open(basename+"{}.strand".format(formatted_strand)+extension, 'a') #writing given matrices to output files
     
     counter = int(start)-1
@@ -329,8 +369,21 @@ def write_to_bedgraph(rx_in,chrom,start,strand,ignore=-999,basename=BASENAME):
     outfile.close()    
 
 
-def combineCoverage(cov,cov5,relPos_in,beds_in,strand,sequence,USE_BED_NAME = False): #input: coverage 5'coverage arrays and a 2darray of bed regions to extract. relPos format: [[relStart,relStop],...]
-        #cov and cov5 profiles are returned reversed by getCoverage() if strand is negative
+def combineCoverage(cov,cov5,relPos_in,beds_in,strand,sequence,USE_BED_NAME = False):
+    '''
+    cov: np.array, len(region) * n_sample from .cov
+    cov5: np.array, len(region) * n_sample from .mut
+    relPos_in: positions from the original bed (not merged)
+    beds_in: unmerged_bed
+    strand:
+    sequence
+
+    #input: coverage 5'coverage arrays and a 2darray of bed regions to extract. relPos format: [[relStart,relStop],...]
+    #cov and cov5 profiles are returned reversed by getCoverage() if strand is negative
+    '''
+    
+    
+     
     if strand=='-': #reversing ordering/ranges of relPos (and beds) if strand is negative
         numRegions = len(relPos_in)
         relPos = np.zeros((numRegions,2), dtype="int")
@@ -341,6 +394,8 @@ def combineCoverage(cov,cov5,relPos_in,beds_in,strand,sequence,USE_BED_NAME = Fa
     else:
         beds = beds_in
         relPos = relPos_in
+    
+    
     reactivities = []
     if USE_BED_NAME: 
         nameDict = {}
@@ -352,6 +407,7 @@ def combineCoverage(cov,cov5,relPos_in,beds_in,strand,sequence,USE_BED_NAME = Fa
                 nameDict[name] = [relPos[i]]
         
         for name in nameDict: #piece together coverages for each seg of regions*
+            print(f'processing name {name}')
             unmerged_regions = nameDict[name] #Regions that have the same name could overlap, giving redundant cov values
             regions = mergeRelPos(unmerged_regions) #solve this by first merging relPos regions, then combining cov profiles
             regionCov = np.zeros((1,len(cov[0])), dtype='int') #len cov[0] is the number of samples
@@ -366,21 +422,25 @@ def combineCoverage(cov,cov5,relPos_in,beds_in,strand,sequence,USE_BED_NAME = Fa
             #print(regionSeq)
             if name in tnxDict: #to get gene name in output file name
                 name += "."+tnxDict[name].split('.')[0]
+            
             reactivities = normalizeSHAPEmain(regionCov[1:],regionCov5[1:]+0.,regionSeq,trimEnds=True)
+            print(f'got reactivity SHAPE: {reactivities.shape}')
             #write_to_file(reactivities,name,".rx",-999,BASENAME)
             enoughdata = write_map_file(reactivities,name,regionSeq,-999,BASENAME)
-            write_to_bedgraph(rx_in=reactivities,chrom='chr1',start=1,strand='+',ignore=-999,basename=BASENAME)
+            write_to_bedgraph(rx_in=reactivities,chrom='chr1',start=1,strand='+',ignore=-999,basename=BASENAME) # why chr1
             ## uncomment to output coverages of	individual transcripts output in addition to map and rx	files
             #if enoughdata:
             #    write_to_file(regionCov[1:],name,".cov",1) #last argurment tells write_to_file to not write if all values==1, for ex
             #    write_to_file(regionCov5[1:],name,".5cov",0) 
     else: #simply write the cov of each bed region to individual file
-        #print(beds)
+        
         c = 0
-        for region in relPos: #relPos and beds are in the same order right?
+        for region in relPos: #relPos and beds are in the same order right?; relative position to the concated sequence
             #regionSeq = bedSeqDict[beds[c][0]+":"+beds[c][1]+"-"+beds[c][2]+"("+strand+")"]
             regionSeq = sequence[region[0]:region[1]]
-            #print(regionSeq)
+            
+
+            ### KEY ####
             reactivities = normalizeSHAPEmain(cov[region[0]:region[1]],cov5[region[0]:region[1]]+0.,regionSeq,trimEnds=True)
             name = beds[c][0]+":"+beds[c][1]+"-"+beds[c][2]+beds[c][5] #chr:start-stop strand
             name = beds[c][3]
@@ -396,11 +456,12 @@ def combineCoverage(cov,cov5,relPos_in,beds_in,strand,sequence,USE_BED_NAME = Fa
             c+=1
      
     
-def bedCoverageMain(bedfile,USE_BED_NAME=False):
+def bedCoverageMain(bedfile,USE_BED_NAME=False, GENOME = None):
     #pre = ["untreat1","untreat2","treat1","treat2"]
     #pre = ["vivo1","vivo2","vitro1","vitro2"]
     #filePrefixes = [DATAPATH+"/"+p+"/coverage/" for p in pre]    
     filePrefixes  = [p+"/" for p in DATAPATH.split(',')]
+    
     #The input needs to be sorted. The best way to ensure that is to do it here.   
     sortedBed = binarySortBed(bedfile) #sorts by chromosome then start position in ascending order
     #The input can cover multiple chromosomes. Need to split up by chromosome AND strand for cov calculations. Binary sort bed does this. Just need to iterate through and define where chrom+strand starts and stops 
@@ -411,23 +472,28 @@ def bedCoverageMain(bedfile,USE_BED_NAME=False):
     if len(sortedBed)==1:
         i=0
     while i < len(sortedBed):
-        thisKey = sortedBed[i][0]+sortedBed[i][5]
-        if thisKey!=lastKey or i==(len(sortedBed)-1):
+        thisKey = sortedBed[i][0]+sortedBed[i][5] 
+        
+        if thisKey!=lastKey or i==(len(sortedBed)-1): # if different chromosome
             if thisKey!=lastKey and i==(len(sortedBed)-1): #bedfile has reached the end AND new chrom
                 i-=1 #need to analyze the current chrom/strand but then the last region as well
             elif i==(len(sortedBed)-1):
                 stop+=1
-            lastKeyBed = sortedBed[start:stop]
+            lastKeyBed = sortedBed[start:stop] # a chunk of bed file the same chr and same strand
             #Some of the regions could be overlapping. Need to merge them to get correct coverages,
             #but keep track of regions' relative positions in the original input with relPos.
-            mergedBed = mergeBedSameChrom(lastKeyBed)
+            mergedBed = mergeBedSameChrom(lastKeyBed) # merge overlapping region.
             relPos = relPosBedSameChrom(lastKeyBed)
-            #print("MERGED BED:")
-            #print(mergedBed)
-            #print("REL POS:")
-            #print(relPos)
-            sequence = getSequence(mergedBed,lastKey[-1])
-            cov, cov5 = getCoverage(mergedBed,filePrefixes) #cov and cov5 are 2darrays
+            print("MERGED BED:")
+            print(mergedBed)
+            print("REL POS:")
+            print(relPos.shape)
+
+            # COVERAGE IS ESTIMATED WITH MERGED BED
+            sequence = getSequence(mergedBed,lastKey[-1], GENOME) # mergedBed regions, strand, GENOME
+            cov, cov5 = getCoverage(mergedBed,filePrefixes) #cov and cov5 are 2darrays, from .cov/.mut file. nothing fancy. add1 for .cov; total bases for merged bed
+
+            print('COVERAGE SHAPE:',cov.shape, cov5.shape)
             combineCoverage(cov,cov5,relPos,lastKeyBed,lastKey[-1],sequence,USE_BED_NAME) #lastKey[-1] gives strand info
             
             lastKey = thisKey
@@ -435,7 +501,7 @@ def bedCoverageMain(bedfile,USE_BED_NAME=False):
         i+=1
         stop+=1
 
-def getSequence(mergedBed,strand):
+def getSequence(mergedBed,strand, GENOME):
     #write mergedBed regions to a single string. Give to BedTool
     #combine all sequences together to be the same length as cov
     seqstring = ""
@@ -464,12 +530,7 @@ def getSequence(mergedBed,strand):
         
 if __name__ == "__main__":
     #######Command line options
-    INPUT = ""
-    USE_BED_NAME = False
-    GENOMEFILE = 'hg38.fa'
-    DATAPATHa = ""
-    DATAPATHb = ""
-    BASENAME = ""
+    
     parser = ArgumentParser(
         description='''bedReactivities.py'''
     )
@@ -557,7 +618,9 @@ if __name__ == "__main__":
     for i in range(1,len(fastalines),2):
         name = fastalines[i-1].lstrip('>') #looks like chr6:26027123-26027480(-)
         bedSeqDict[name] = fastalines[i].upper()
-
+    
+    
+    # MAKEING BED INTO a n_region * 6 np array
     bedfile = open(INPUT, 'r')
     bedlines = bedfile.read().splitlines()
     bedfile.close()
@@ -571,6 +634,10 @@ if __name__ == "__main__":
     if len(bedlines)<1: #input was empty
         print("Input bed file is empty.")
         sys.exit()
-    bedCoverageMain(bed,USE_BED_NAME)
-
     
+    
+    
+    bedCoverageMain(bed,USE_BED_NAME, GENOME=GENOME)
+
+    with open(f'{BASENAME}.success.txt', 'w') as f:
+        f.write('done')

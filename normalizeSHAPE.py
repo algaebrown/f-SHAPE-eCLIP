@@ -17,7 +17,7 @@ import math
 #A crucial assumption in this script is that there are the same number of treated and background control replicates.
 
 global confminDepth, confmaxBackground
-confminDepth=160
+confminDepth=20 ### TODO: make modifiable
 confmaxBackground=0.3
 #if len(sys.argv)>4:
 #    confmaxBackground=float(sys.argv[4])
@@ -255,11 +255,15 @@ def normalizeSHAPEmain(cov,cov5,sequence,trimEnds=True):
     rates = cov5/cov #neg1Rate neg2Rate... negnRate pos1Rate treat2Rate...treatnRate
     #print(rates[0:10])    
     numSamples = int(len(rates[0])/2) #assumed to be same number of neg (bg) and treated (rx) samples
-    profiles = ((rates[:,numSamples:] - rates[:,0:numSamples])) #/20 #+.025 before dividing by 20? #make numbers closer to SHAPE-MaP dists. On average icSHAPE mod rates (in + sample) are 4.77 times higher than in SHAPE-MaP. raw reactivity distributions are spread between -.2 and .2, but SHAPEMaP vals are from -.01 to .01
-    #print(profiles[35:40])
-    bgSignals = rates[:,0:numSamples]
+
+    bgSignals = rates[:,0:numSamples] # background mutational rate, cov5/cov
+    rxSignals = rates[:,numSamples:]
     rxDepths = cov[:,numSamples:]
     bgDepths = cov[:,0:numSamples]
+
+    profiles = ((rxSignals - bgSignals)) #/20 #+.025 before dividing by 20? #make numbers closer to SHAPE-MaP dists. On average icSHAPE mod rates (in + sample) are 4.77 times higher than in SHAPE-MaP. raw reactivity distributions are spread between -.2 and .2, but SHAPEMaP vals are from -.01 to .01
+    #print(profiles[35:40])
+    
     
     filteredProfiles = filterProfile(profiles,bgSignals,rxDepths,bgDepths,sequence,confmaxBackground,confminDepth,trimEnds)
     normFactors = findBoxplotFactor(filteredProfiles,rxDepths,bgDepths, confminDepth)
